@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+<style>
+
+rect {
+        stroke: #E6E6E6;
+        stroke-width: 1.5px;
+      }
+
+.axis text {
+  font-size: 8pt;
+  font-family: Consolas, courier;
+  fill: #000;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: none;
+}
+
+.d3-tip {
+  line-height: 1;
+  font: 14px sans-serif;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: rgb(185, 185, 185);
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+#chart {
+  width: 600px;
+  height: 800px;
+
+  position: absolute;
+}
+
+</style>
+
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="http://labratrevenge.com/d3-tip/javascripts/d3.tip.v0.6.3.js"></script>
+
+<body>
+<svg id="chart"></svg>
+<script type="text/javascript">
+    // Creating margins and other svg attributes
+    var margin = { top: 200, right: 0, bottom: 100, left: 400 },
+        dim = Math.min(parseInt(d3.select("#chart").style("width")), parseInt(d3.select("#chart").style("height")))
+        width = dim - margin.left - margin.right,
+        height = dim - margin.top - margin.bottom,
+        categories = 8,
+        categories_y = 20,
+        buckets = 5,
+        gridSize= width / categories,
+        colors = ["#1a9641","#abdda4","#ffffbf","#fdae61","#fdb863","#d7191c"];
+
+    // Create the svg canvas
+    var svg = d3.select("#chart")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // Using tooltips for hover info
+    var tip = d3.tip()
+        .attr('class', 'd3-tip')
+        .offset([-10, 0])
+        .html(function(d) {
+          return  "<div><span>Risk Type:</span> <span style='color:white'>" + d.risk_factors + " on " + d.time + "</span></div>" +
+                  "<div><span>Level:</span> <span style='color:white'>" + d.value + "</span></div>";
+        })
+    svg.call(tip);
+
+    // Creating axis scale and labels
+    var Risk_items = [],
+        times = ["Oct 2012","Apr 2013","Oct 2013","Apr 2014","Oct 2014", "Apr 2015","Oct 2015","Apr 2016"];
+    // Too many Risk Labels to type out and so we shall read it from the .csv file directly. Disadvantage here is we cannot use "yScale"
+    // and we would have to manually place axis labels 
+    var xScale = d3.scale.ordinal().rangeBands([0, width]);
+    var yScale = d3.scale.ordinal().rangeBands([0, height]);
+    var xAxis = d3.svg.axis().orient("top");
+    var yAxis = d3.svg.axis().orient("left");
+
+
+
+d3.csv("data.csv", function(error, data){
+  // Creating Risk(color) buckets
+  var color = d3.scale.quantile()
+      .domain([0, buckets-1, d3.max(data, function (d) { return d.value; })])
+      .range(colors);
+
+  // Create the heatmap visualization
+  var viz = svg.selectAll(".riskLevel")
+              .data(data)
+              .enter().append("rect")
+                  .attr("class", "riskLevel")
+                  .attr("x", function(d, i) {return gridSize * Math.floor(i / categories_y) ; })
+                  .attr("y", function(d, i) {return gridSize * (i % categories_y) ; })
+                  .attr("width", gridSize)
+                  .attr("height", gridSize)
+                  .style("fill", function(d){return color(d.value) ; })
+                  .on('mouseover', tip.show)
+                  .on('mouseout', tip.hide);
+// Labeling xAxis
+   xScale.domain(times);
+   xAxis.scale(xScale);
+   svg.append("g")
+      .attr("class", "x axis")
+      .call(xAxis)
+      .selectAll("text")
+          .attr("y", -5)
+          .attr("dy", ".5em")
+          .attr("x", 5)
+          .attr("transform", "rotate(-90)")
+          .style("text-anchor", "start")
+
+// Creating y axis labels
+data.slice(0, categories_y).forEach(function(d){
+      Risk_items.push(d.risk_factors);
+});
+
+// Labeling yAxis
+var riskLabel = svg.selectAll(".riskLabel")
+    .data(Risk_items)
+    .enter().append("text")
+      .text(function (d) { return d; })
+      .attr("x", 0)
+      .attr("y", function (d, i) { return i * gridSize; })
+      .style("text-anchor", "end")
+      .style("font-size","12px")
+      .attr("transform", "translate(-6," + gridSize / 1.5 + ")")
+});
+
+</script>
+</body>
+</html>
